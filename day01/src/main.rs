@@ -1,9 +1,6 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
-mod mod100;
-use mod100::Mod100;
-
 #[derive(Debug, Clone, Copy)]
 enum Direction {
     Left,
@@ -13,7 +10,7 @@ enum Direction {
 #[derive(Debug, Clone, Copy)]
 struct Instruction {
     direction: Direction,
-    steps: Mod100,
+    steps: u16,
 }
 
 fn parse_line(line: &str) -> Instruction {
@@ -23,14 +20,11 @@ fn parse_line(line: &str) -> Instruction {
         _ => panic!("Invalid direction"),
     };
     let steps: u16 = line[1..].parse().expect("Invalid number");
-    Instruction {
-        direction,
-        steps: Mod100::new(steps),
-    }
+    Instruction { direction, steps }
 }
 
 fn process_input<R: BufRead>(reader: R) -> u32 {
-    let mut sum = Mod100::new(50);
+    let mut position = 50i32;
     let mut secret: u32 = 0;
 
     for line in reader.lines() {
@@ -39,13 +33,31 @@ fn process_input<R: BufRead>(reader: R) -> u32 {
             continue;
         }
         let inst = parse_line(&line);
-        match inst.direction {
-            Direction::Left => sum = sum - inst.steps,
-            Direction::Right => sum = sum + inst.steps,
+
+        let steps = inst.steps as i32;
+
+        // Count complete laps
+        secret += (steps / 100) as u32;
+
+        // Calculate new position after partial rotation
+        let delta = match inst.direction {
+            Direction::Right => steps % 100,
+            Direction::Left => -(steps % 100),
+        };
+        let new_pos = (position + delta).rem_euclid(100);
+
+        // Count if we pass through 0 (wrap or land on 0, but not if starting at 0)
+        if position != 0 {
+            let wrapped = match inst.direction {
+                Direction::Right => new_pos < position,
+                Direction::Left => new_pos > position,
+            };
+            if wrapped || new_pos == 0 {
+                secret += 1;
+            }
         }
-        if sum == Mod100::new(0) {
-            secret += 1;
-        }
+
+        position = new_pos;
     }
 
     secret
@@ -62,7 +74,7 @@ fn main() {
 mod tests {
     use super::*;
 
-    const EXPECTED_RESULT: u32 = 992;
+    const EXPECTED_RESULT: u32 = 6133;
 
     #[test]
     fn test_with_actual_input() {
