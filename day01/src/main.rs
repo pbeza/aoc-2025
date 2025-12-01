@@ -23,7 +23,32 @@ fn parse_line(line: &str) -> Instruction {
     Instruction { direction, steps }
 }
 
-fn process_input<R: BufRead>(reader: R) -> u32 {
+fn part1<R: BufRead>(reader: R) -> u32 {
+    let mut position = 50i32;
+    let mut secret: u32 = 0;
+
+    for line in reader.lines() {
+        let line = line.expect("Failed to read line");
+        if line.is_empty() {
+            continue;
+        }
+        let inst = parse_line(&line);
+
+        let delta = match inst.direction {
+            Direction::Right => inst.steps as i32,
+            Direction::Left => -(inst.steps as i32),
+        };
+        position = (position + delta).rem_euclid(100);
+
+        if position == 0 {
+            secret += 1;
+        }
+    }
+
+    secret
+}
+
+fn part2<R: BufRead>(reader: R) -> u32 {
     let mut position = 50i32;
     let mut secret: u32 = 0;
 
@@ -63,24 +88,35 @@ fn process_input<R: BufRead>(reader: R) -> u32 {
     secret
 }
 
-fn main() {
+fn read_input() -> BufReader<File> {
     let file = File::open("inputs/day01.txt").expect("Failed to open input file");
-    let reader = BufReader::new(file);
-    let secret = process_input(reader);
-    println!("{secret}");
+    BufReader::new(file)
+}
+
+fn main() {
+    let result1 = part1(read_input());
+    let result2 = part2(read_input());
+    println!("Part 1: {result1}");
+    println!("Part 2: {result2}");
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    const EXPECTED_RESULT: u32 = 6133;
-
     #[test]
-    fn test_with_actual_input() {
+    fn test_part1() {
         let file = File::open("../inputs/day01.txt").expect("Failed to read input file");
         let reader = BufReader::new(file);
-        let result = process_input(reader);
-        assert_eq!(result, EXPECTED_RESULT);
+        let result = part1(reader);
+        assert_eq!(result, 992);
+    }
+
+    #[test]
+    fn test_part2() {
+        let file = File::open("../inputs/day01.txt").expect("Failed to read input file");
+        let reader = BufReader::new(file);
+        let result = part2(reader);
+        assert_eq!(result, 6133);
     }
 }
