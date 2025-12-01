@@ -1,0 +1,14 @@
+# Rust
+/target/
+Cargo.lock
+
+# Input files (personal puzzle inputs should not be committed)
+inputs/*.txt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
