@@ -34,7 +34,7 @@ fn is_repeating_pattern_kmp(n: u64) -> bool {
     let longest_border = pi[len - 1];
     let pat_len = len - longest_border;
 
-    longest_border > 0 && len % pat_len == 0
+    longest_border > 0 && len.is_multiple_of(pat_len)
 }
 
 fn process_ranges<R: BufRead, F>(reader: R, predicate: F) -> u64
