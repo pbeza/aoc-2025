@@ -34,10 +34,13 @@ where
                         let nr = r as i32 + dr;
                         let nc = c as i32 + dc;
 
-                        if nr >= 0 && nr < rows as i32 && nc >= 0 && nc < cols as i32 {
-                            if targets.contains(&grid[nr as usize][nc as usize]) {
-                                adjacent_count += 1;
-                            }
+                        if nr >= 0
+                            && nr < rows as i32
+                            && nc >= 0
+                            && nc < cols as i32
+                            && targets.contains(&grid[nr as usize][nc as usize])
+                        {
+                            adjacent_count += 1;
                         }
                     }
                 }
