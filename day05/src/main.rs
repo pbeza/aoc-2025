@@ -1,6 +1,24 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
+fn parse_and_merge_ranges<R: BufRead>(reader: R) -> Vec<(u64, u64)> {
+    let mut lines = reader.lines().map(|l| l.expect("Failed to read line"));
+    let mut ranges: Vec<(u64, u64)> = Vec::new();
+
+    for line in lines.by_ref() {
+        if line.is_empty() {
+            break;
+        }
+        if let Some((start, end)) = line.split_once('-') {
+            ranges.push((start.parse().unwrap(), end.parse().unwrap()));
+        }
+    }
+
+    ranges.sort_unstable();
+    ranges.dedup_by(|b, a| (b.0 <= a.1 + 1).then(|| a.1 = a.1.max(b.1)).is_some());
+    ranges
+}
+
 fn count_fresh_ingredients<R: BufRead>(reader: R) -> usize {
     let mut lines = reader.lines().map(|l| l.expect("Failed to read line"));
     let mut ranges: Vec<(u64, u64)> = Vec::new();
@@ -27,6 +45,13 @@ fn count_fresh_ingredients<R: BufRead>(reader: R) -> usize {
         .count()
 }
 
+fn count_all_fresh_ids<R: BufRead>(reader: R) -> u64 {
+    parse_and_merge_ranges(reader)
+        .iter()
+        .map(|(start, end)| end - start + 1)
+        .sum()
+}
+
 fn read_input() -> BufReader<File> {
     let file = File::open("inputs/day05.txt").expect("Failed to open input file");
     BufReader::new(file)
@@ -35,6 +60,8 @@ fn read_input() -> BufReader<File> {
 fn main() {
     let result = count_fresh_ingredients(read_input());
     println!("Part 1: {result}");
+    let result = count_all_fresh_ids(read_input());
+    println!("Part 2: {result}");
 }
 
 #[cfg(test)]
@@ -48,6 +75,10 @@ mod tests {
         let reader = Cursor::new(input);
         let result = count_fresh_ingredients(reader);
         assert_eq!(result, 3);
+
+        let reader = Cursor::new(input);
+        let result = count_all_fresh_ids(reader);
+        assert_eq!(result, 14);
     }
 
     #[test]
@@ -56,5 +87,13 @@ mod tests {
         let reader = BufReader::new(file);
         let result = count_fresh_ingredients(reader);
         assert_eq!(result, 690);
+    }
+
+    #[test]
+    fn test_part2() {
+        let file = File::open("../inputs/day05.txt").expect("Failed to read input file");
+        let reader = BufReader::new(file);
+        let result = count_all_fresh_ids(reader);
+        println!("Part 2 result: {result}");
     }
 }
