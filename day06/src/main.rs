@@ -1,38 +1,80 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
-fn solve_worksheet<R: BufRead>(reader: R) -> u64 {
-    let rows: Vec<Vec<&str>> = reader
-        .lines()
-        .map(|l| l.unwrap().leak() as &str)
-        .map(|line| line.split_whitespace().collect())
+fn solve_worksheet<R: BufRead>(reader: R) -> (u64, u64) {
+    let lines: Vec<String> = reader.lines().map(|l| l.unwrap()).collect();
+    let width = lines.iter().map(|l| l.len()).max().unwrap_or(0);
+
+    let grid: Vec<Vec<char>> = lines
+        .iter()
+        .map(|line| {
+            let mut chars = line.chars().collect::<Vec<_>>();
+            chars.resize(width, ' ');
+            chars
+        })
         .collect();
 
-    (0..rows[0].len())
-        .filter_map(|col| {
-            let mut numbers = Vec::new();
-            let mut operator = None;
+    let height = grid.len();
+    let is_empty_col = |col| (0..height).all(|row| grid[row][col] == ' ');
 
-            for row in &rows {
-                match row[col] {
-                    "+" | "*" => operator = row[col].chars().next(),
-                    num => {
-                        if let Ok(n) = num.parse::<u64>() {
-                            numbers.push(n);
-                        }
+    let mut part1_total = 0u64;
+    let mut part2_total = 0u64;
+    let mut col = 0;
+
+    while col < width {
+        if is_empty_col(col) {
+            col += 1;
+            continue;
+        }
+
+        let start = col;
+        while col < width && !is_empty_col(col) {
+            col += 1;
+        }
+
+        let mut part1_numbers = Vec::new();
+        let mut operator = None;
+
+        for row in 0..height {
+            let text: String = (start..col).map(|c| grid[row][c]).collect();
+            match text.trim() {
+                "+" | "*" => operator = text.trim().chars().next(),
+                t => {
+                    if let Ok(n) = t.parse::<u64>() {
+                        part1_numbers.push(n);
                     }
                 }
             }
+        }
 
-            operator.map(|op| {
-                if op == '+' {
-                    numbers.iter().sum::<u64>()
-                } else {
-                    numbers.iter().product::<u64>()
-                }
+        let part2_numbers: Vec<u64> = (start..col)
+            .rev()
+            .filter_map(|c| {
+                let digits: String = (0..height)
+                    .filter_map(|row| {
+                        let ch = grid[row][c];
+                        ch.is_ascii_digit().then_some(ch)
+                    })
+                    .collect();
+                digits.parse().ok()
             })
-        })
-        .sum()
+            .collect();
+
+        if let Some(op) = operator {
+            part1_total += if op == '+' {
+                part1_numbers.iter().sum::<u64>()
+            } else {
+                part1_numbers.iter().product::<u64>()
+            };
+            part2_total += if op == '+' {
+                part2_numbers.iter().sum::<u64>()
+            } else {
+                part2_numbers.iter().product::<u64>()
+            };
+        }
+    }
+
+    (part1_total, part2_total)
 }
 
 fn read_input() -> BufReader<File> {
@@ -41,8 +83,9 @@ fn read_input() -> BufReader<File> {
 }
 
 fn main() {
-    let result = solve_worksheet(read_input());
-    println!("Part 1: {result}");
+    let (part1, part2) = solve_worksheet(read_input());
+    println!("Part 1: {part1}");
+    println!("Part 2: {part2}");
 }
 
 #[cfg(test)]
@@ -52,18 +95,25 @@ mod tests {
 
     #[test]
     fn test_example() {
-        // The example in the problem description doesn't have separator columns,
-        // so let's add them to match the expected format
-        let input = "123  328  51  64\n45   64   387 23\n6    98   215 314\n*    +    *   +";
+        let input = "123  328  51  64 \n 45  64  387  23 \n  6  98  215  314\n*    +    *    +  ";
         let reader = Cursor::new(input);
-        let result = solve_worksheet(reader);
-        assert_eq!(result, 4277556);
+        let (part1, part2) = solve_worksheet(reader);
+        assert_eq!(part1, 4277556);
+        assert_eq!(part2, 3263827);
     }
 
     #[test]
     fn test_part1() {
-        let result = solve_worksheet(read_input());
-        println!("Part 1 result: {result}");
-        assert_eq!(result, 6169101504608);
+        let (part1, part2) = solve_worksheet(read_input());
+        println!("Part 1: {part1}");
+        println!("Part 2: {part2}");
+        assert_eq!(part1, 6169101504608);
+    }
+
+    #[test]
+    fn test_part2() {
+        let (_part1, part2) = solve_worksheet(read_input());
+        println!("Part 2: {part2}");
+        assert_eq!(part2, 10442199710797);
     }
 }
