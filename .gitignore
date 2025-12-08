@@ -1,5 +1,5 @@
 # Rust
-/target/
+target/
 Cargo.lock
 
 # Input files (personal puzzle inputs should not be committed)
