@@ -44,10 +44,50 @@ impl UnionFind {
         v.sort_unstable_by(|a, b| b.cmp(a));
         v.iter().take(3).product()
     }
+
+    fn num_components(&mut self) -> usize {
+        let mut roots = std::collections::HashSet::new();
+        for i in 0..self.parent.len() {
+            roots.insert(self.find(i));
+        }
+        roots.len()
+    }
 }
 
-fn solve<R: BufRead>(reader: R, connections: usize) -> usize {
-    let points: Vec<(i32, i32, i32)> = reader
+fn solve_part1<R: BufRead>(reader: R, connections: usize) -> usize {
+    let (points, edges) = parse_and_sort(reader);
+    let mut uf = UnionFind::new(points.len());
+    edges
+        .iter()
+        .take(connections)
+        .for_each(|(_, i, j)| uf.union(*i, *j));
+
+    uf.top3_sizes()
+}
+
+fn solve_part2<R: BufRead>(reader: R) -> usize {
+    let (points, edges) = parse_and_sort(reader);
+    let mut uf = UnionFind::new(points.len());
+    let mut last_connection = (0, 0);
+
+    for (_, i, j) in edges {
+        if uf.find(i) != uf.find(j) {
+            uf.union(i, j);
+            last_connection = (i, j);
+            if uf.num_components() == 1 {
+                break;
+            }
+        }
+    }
+
+    points[last_connection.0].0 as usize * points[last_connection.1].0 as usize
+}
+
+type Points = Vec<(i32, i32, i32)>;
+type Edges = Vec<(f64, usize, usize)>;
+
+fn parse_and_sort<R: BufRead>(reader: R) -> (Points, Edges) {
+    let points: Points = reader
         .lines()
         .map(|l| {
             let v: Vec<i32> = l.unwrap().split(',').map(|s| s.parse().unwrap()).collect();
@@ -70,14 +110,7 @@ fn solve<R: BufRead>(reader: R, connections: usize) -> usize {
     }
 
     edges.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
-
-    let mut uf = UnionFind::new(n);
-    edges
-        .iter()
-        .take(connections)
-        .for_each(|(_, i, j)| uf.union(*i, *j));
-
-    uf.top3_sizes()
+    (points, edges)
 }
 
 fn read_input() -> BufReader<File> {
@@ -85,7 +118,8 @@ fn read_input() -> BufReader<File> {
 }
 
 fn main() {
-    println!("Part 1: {}", solve(read_input(), 1000));
+    println!("Part 1: {}", solve_part1(read_input(), 1000));
+    println!("Part 2: {}", solve_part2(read_input()));
 }
 
 #[cfg(test)]
@@ -116,12 +150,14 @@ mod tests {
                      984,92,344\n\
                      425,690,689";
         let reader = Cursor::new(input);
-        assert_eq!(solve(reader, 10), 40);
+        assert_eq!(solve_part1(reader, 10), 40);
+        let reader = Cursor::new(input);
+        assert_eq!(solve_part2(reader), 25272);
     }
 
     #[test]
     fn test_part1() {
-        let result = solve(read_input(), 1000);
+        let result = solve_part1(read_input(), 1000);
         assert_eq!(result, 131150);
     }
 }
