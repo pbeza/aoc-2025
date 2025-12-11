@@ -47,45 +47,75 @@ fn count_paths(
     total_paths
 }
 
-fn count_paths_dp(
+// Topological sort using DFS
+fn toposort(
     graph: &HashMap<String, Vec<String>>,
-    current: &str,
-    target: &str,
+    node: &str,
     visited: &mut HashSet<String>,
-    visited_mask: u8,
-    required_map: &HashMap<String, u8>,
-    memo: &mut HashMap<(String, u8), usize>,
-) -> usize {
-    let mut mask = visited_mask;
-    if let Some(&bit) = required_map.get(current) {
-        mask |= bit;
+    stack: &mut Vec<String>,
+) {
+    if visited.contains(node) {
+        return;
     }
+    visited.insert(node.to_string());
 
-    if current == target {
-        return if mask == 3 { 1 } else { 0 };
-    }
-
-    let key = (current.to_string(), mask);
-    if let Some(&cached) = memo.get(&key) {
-        return cached;
-    }
-
-    visited.insert(current.to_string());
-
-    let mut total_paths = 0;
-
-    if let Some(neighbors) = graph.get(current) {
+    if let Some(neighbors) = graph.get(node) {
         for neighbor in neighbors {
-            if !visited.contains(neighbor) {
-                total_paths +=
-                    count_paths_dp(graph, neighbor, target, visited, mask, required_map, memo);
+            toposort(graph, neighbor, visited, stack);
+        }
+    }
+
+    stack.push(node.to_string());
+}
+
+// Count paths from source to all nodes using DP with topological sort
+fn count_paths_from(graph: &HashMap<String, Vec<String>>, source: &str) -> HashMap<String, usize> {
+    let mut visited = HashSet::new();
+    let mut stack = Vec::new();
+
+    // Get all nodes reachable from source
+    toposort(graph, source, &mut visited, &mut stack);
+    stack.reverse(); // Process in topological order
+
+    let mut counts = HashMap::new();
+    counts.insert(source.to_string(), 1);
+
+    for node in stack {
+        let current_count = *counts.get(&node).unwrap_or(&0);
+        if current_count == 0 {
+            continue;
+        }
+
+        if let Some(neighbors) = graph.get(&node) {
+            for neighbor in neighbors {
+                *counts.entry(neighbor.clone()).or_insert(0) += current_count;
             }
         }
     }
 
-    visited.remove(current);
-    memo.insert(key, total_paths);
-    total_paths
+    counts
+}
+
+// Build reverse graph
+fn reverse_graph(graph: &HashMap<String, Vec<String>>) -> HashMap<String, Vec<String>> {
+    let mut rev = HashMap::new();
+
+    for (node, neighbors) in graph {
+        rev.entry(node.clone()).or_insert_with(Vec::new);
+        for neighbor in neighbors {
+            rev.entry(neighbor.clone())
+                .or_insert_with(Vec::new)
+                .push(node.clone());
+        }
+    }
+
+    rev
+}
+
+// Count paths from all nodes to target using reverse graph
+fn count_paths_to(graph: &HashMap<String, Vec<String>>, target: &str) -> HashMap<String, usize> {
+    let rev = reverse_graph(graph);
+    count_paths_from(&rev, target)
 }
 
 fn solve_part1<R: BufRead>(reader: R) -> usize {
@@ -96,20 +126,17 @@ fn solve_part1<R: BufRead>(reader: R) -> usize {
 
 fn solve_part2<R: BufRead>(reader: R) -> usize {
     let graph = parse_input(reader);
-    let mut visited = HashSet::new();
-    let mut required_map = HashMap::new();
-    required_map.insert("dac".to_string(), 1);
-    required_map.insert("fft".to_string(), 2);
-    let mut memo = HashMap::new();
-    count_paths_dp(
-        &graph,
-        "svr",
-        "out",
-        &mut visited,
-        0,
-        &required_map,
-        &mut memo,
-    )
+
+    // Helper to count paths visiting nodes A then B
+    let count_via = |a: &str, b: &str| {
+        let from_start = count_paths_from(&graph, "svr");
+        let from_a = count_paths_from(&graph, a);
+        let to_end = count_paths_to(&graph, "out");
+
+        from_start.get(a).unwrap_or(&0) * from_a.get(b).unwrap_or(&0) * to_end.get(b).unwrap_or(&0)
+    };
+
+    count_via("fft", "dac") + count_via("dac", "fft")
 }
 
 fn read_input() -> BufReader<File> {
@@ -159,5 +186,10 @@ ggg: out
 hhh: out";
         let reader = Cursor::new(input);
         assert_eq!(solve_part2(reader), 2);
+    }
+
+    #[test]
+    fn test_part2() {
+        assert_eq!(solve_part2(read_input()), 473930047491888);
     }
 }
